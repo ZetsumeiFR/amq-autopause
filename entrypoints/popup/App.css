@@ -1,0 +1,288 @@
+#root {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.app-container {
+  min-width: 350px;
+}
+
+.app-container h1 {
+  font-size: 1.8em;
+  margin-bottom: 1rem;
+  color: #9146ff;
+}
+
+.card {
+  padding: 1.5em;
+  background: rgba(145, 70, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(145, 70, 255, 0.2);
+}
+
+.loading {
+  color: #888;
+  font-size: 1rem;
+  padding: 2rem;
+}
+
+.login-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-text {
+  color: #b3b3b3;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.twitch-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #9146ff;
+  color: white;
+  border: none;
+  padding: 0.75em 1.5em;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.twitch-button:hover:not(:disabled) {
+  background: #772ce8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(145, 70, 255, 0.4);
+}
+
+.twitch-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.twitch-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.twitch-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #9146ff;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #9146ff;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.welcome-text {
+  color: #e0e0e0;
+  margin: 0;
+}
+
+.welcome-text strong {
+  color: #9146ff;
+}
+
+.logout-button {
+  background: transparent;
+  color: #ff4757;
+  border: 1px solid #ff4757;
+  padding: 0.5em 1.2em;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-button:hover:not(:disabled) {
+  background: rgba(255, 71, 87, 0.1);
+}
+
+.logout-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.error-text {
+  color: #ff4757;
+  font-size: 0.85rem;
+  margin: 0;
+  padding: 0.5rem;
+  background: rgba(255, 71, 87, 0.1);
+  border-radius: 6px;
+}
+
+/* Configuration Card */
+.config-card {
+  margin-top: 1rem;
+  text-align: left;
+}
+
+.config-card h2 {
+  font-size: 1.2em;
+  color: #9146ff;
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+.config-section {
+  margin-bottom: 1rem;
+}
+
+.config-label {
+  display: block;
+  font-size: 0.9rem;
+  color: #e0e0e0;
+  margin-bottom: 0.4rem;
+  font-weight: 500;
+}
+
+.config-input {
+  width: 100%;
+  padding: 0.6em;
+  border: 1px solid rgba(145, 70, 255, 0.3);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.config-input:focus {
+  outline: none;
+  border-color: #9146ff;
+}
+
+.config-input::placeholder {
+  color: #666;
+}
+
+.config-hint {
+  font-size: 0.75rem;
+  color: #888;
+  margin: 0.3rem 0 0 0;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.toggle-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #9146ff;
+}
+
+.toggle-text {
+  font-size: 0.9rem;
+  color: #e0e0e0;
+}
+
+.status-section {
+  margin-bottom: 1rem;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.status-indicator.connected {
+  background: rgba(46, 213, 115, 0.1);
+}
+
+.status-indicator.disconnected {
+  background: rgba(255, 71, 87, 0.1);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #888;
+}
+
+.status-indicator.connected .status-dot {
+  background: #2ed573;
+  box-shadow: 0 0 8px rgba(46, 213, 115, 0.5);
+}
+
+.status-indicator.disconnected .status-dot {
+  background: #ff4757;
+}
+
+.status-text {
+  font-size: 0.85rem;
+  color: #e0e0e0;
+}
+
+.reconnect-info {
+  font-size: 0.75rem;
+  color: #ffa502;
+  margin: 0.3rem 0 0 0;
+}
+
+.save-button {
+  width: 100%;
+  background: #9146ff;
+  color: white;
+  border: none;
+  padding: 0.7em 1em;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #772ce8;
+}
+
+.save-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
