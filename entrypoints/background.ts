@@ -31,7 +31,8 @@ export default defineBackground(() => {
     const storage = (await browser.storage.local.get([
       "configuredRewardId",
       "sseEnabled",
-    ])) as StorageData;
+      "twitchSession",
+    ])) as StorageData & { twitchSession?: { user: { id: string } } };
 
     if (!storage.sseEnabled) {
       console.log("[AMQ Autopause] SSE is disabled in settings");
@@ -43,6 +44,13 @@ export default defineBackground(() => {
       return;
     }
 
+    // Check if user is authenticated
+    if (!storage.twitchSession?.user?.id) {
+      console.warn("[AMQ Autopause] No active session found, SSE not starting");
+      console.warn("[AMQ Autopause] Please sign in with Twitch first");
+      return;
+    }
+
     // Close existing connection if any
     if (eventSource) {
       eventSource.close();
@@ -50,10 +58,7 @@ export default defineBackground(() => {
     }
 
     try {
-      // Get session cookie for authentication
-      const cookies = await browser.cookies.getAll({
-        url: API_BASE_URL,
-      });
+      console.log("[AMQ Autopause] Attempting to connect SSE with credentials...");
 
       // Create SSE connection
       // Note: EventSource doesn't support custom headers, so we rely on cookies
@@ -99,6 +104,14 @@ export default defineBackground(() => {
 
       eventSource.onerror = (error) => {
         console.error("[AMQ Autopause] SSE error:", error);
+
+        // Check readyState to provide better error messages
+        if (eventSource?.readyState === EventSource.CLOSED) {
+          console.error("[AMQ Autopause] SSE connection closed by server");
+          console.error("[AMQ Autopause] This may indicate authentication failure or server unavailability");
+          console.error("[AMQ Autopause] Please ensure you are signed in with Twitch");
+        }
+
         eventSource?.close();
         eventSource = null;
 
@@ -113,6 +126,7 @@ export default defineBackground(() => {
           console.error(
             "[AMQ Autopause] Max reconnection attempts reached, giving up",
           );
+          console.error("[AMQ Autopause] Please check your authentication status and try signing in again");
         }
       };
     } catch (error) {

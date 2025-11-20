@@ -165,16 +165,16 @@ function App() {
         {session ? (
           <div className="user-info">
             <div className="user-avatar">
-              {session.user.profile_image_url ? (
-                <img src={session.user.profile_image_url} alt="Avatar" />
+              {session.user.image ? (
+                <img src={session.user.image} alt="Avatar" />
               ) : (
                 <div className="avatar-placeholder">
-                  {session.user.display_name?.charAt(0) || "U"}
+                  {session.user.name?.charAt(0) || "U"}
                 </div>
               )}
             </div>
             <p className="welcome-text">
-              Connecté en tant que <strong>{session.user.display_name}</strong>
+              Connecté en tant que <strong>{session.user.name}</strong>
             </p>
             <button
               onClick={handleLogout}

@@ -1,141 +1,34 @@
-// Twitch OAuth configuration
-// You need to create a Twitch application at https://dev.twitch.tv/console
-// Set the OAuth Redirect URL to the value from browser.identity.getRedirectURL()
+// Better-Auth OAuth configuration for Chrome extension
+// This uses the backend's better-auth OAuth flow instead of custom implementation
 
-const TWITCH_CLIENT_ID =
-  import.meta.env.VITE_TWITCH_CLIENT_ID || "YOUR_TWITCH_CLIENT_ID";
-const TWITCH_SCOPES = ["user:read:email"];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export interface TwitchUser {
   id: string;
-  login: string;
-  display_name: string;
+  name: string;
   email?: string;
-  profile_image_url: string;
+  image?: string;
 }
 
 export interface AuthSession {
   user: TwitchUser;
-  accessToken: string;
-  expiresAt: number;
-}
-
-// Get the redirect URL for Twitch OAuth
-export function getRedirectURL(): string {
-  const url = browser.identity.getRedirectURL("twitch");
-  if (!url) {
-    throw new Error("Failed to get redirect URL from browser.identity");
-  }
-  return url;
-}
-
-// Build Twitch OAuth authorization URL
-function buildAuthURL(): string {
-  const redirectURL = getRedirectURL();
-  const params = new URLSearchParams({
-    client_id: TWITCH_CLIENT_ID,
-    redirect_uri: redirectURL,
-    response_type: "token",
-    scope: TWITCH_SCOPES.join(" "),
-    force_verify: "true",
-  });
-
-  return `https://id.twitch.tv/oauth2/authorize?${params.toString()}`;
-}
-
-// Parse access token from redirect URL
-function parseAccessToken(responseURL: string): {
-  token: string;
-  expiresIn: number;
-} {
-  try {
-    const url = new URL(responseURL);
-    const hash = url.hash.substring(1);
-    const params = new URLSearchParams(hash);
-
-    // Check for error response first
-    const error = params.get("error");
-    const errorDescription = params.get("error_description");
-    if (error) {
-      throw new Error(
-        `Twitch OAuth error: ${error} - ${errorDescription || "No description"}`,
-      );
-    }
-
-    const token = params.get("access_token");
-    const expiresIn = params.get("expires_in");
-
-    if (!token) {
-      // Log the full URL for debugging (without exposing it in production)
-      console.error("Response URL structure:", {
-        hasHash: !!url.hash,
-        hashLength: url.hash.length,
-        searchParams: Object.fromEntries(url.searchParams),
-        hashParams: Object.fromEntries(params),
-      });
-      throw new Error(
-        "No access_token found in OAuth response. Check your Twitch redirect URI configuration.",
-      );
-    }
-
-    // Use default expiration if not provided (Twitch tokens typically expire in 4 hours)
-    const DEFAULT_EXPIRES_IN = 14400; // 4 hours in seconds
-    const expiresInSeconds = expiresIn
-      ? parseInt(expiresIn, 10)
-      : DEFAULT_EXPIRES_IN;
-
-    if (!expiresIn) {
-      console.warn(
-        "No expires_in found in OAuth response, using default:",
-        DEFAULT_EXPIRES_IN,
-      );
-    }
-
-    return {
-      token,
-      expiresIn: expiresInSeconds,
-    };
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error(`Failed to parse OAuth response URL: ${error}`);
-  }
-}
-
-// Fetch user info from Twitch API
-async function fetchTwitchUser(accessToken: string): Promise<TwitchUser> {
-  const response = await fetch("https://api.twitch.tv/helix/users", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Client-Id": TWITCH_CLIENT_ID,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch user info: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  const user = data.data[0];
-
-  return {
-    id: user.id,
-    login: user.login,
-    display_name: user.display_name,
-    email: user.email,
-    profile_image_url: user.profile_image_url,
+  session: {
+    token: string;
+    expiresAt: number;
   };
 }
 
-// Main sign in function using browser.identity
+// Main sign in function using better-auth backend
 export async function signInWithTwitch(): Promise<AuthSession> {
-  const authURL = buildAuthURL();
+  // Open backend's OAuth flow in a new window
+  const authURL = `${API_BASE_URL}/api/auth/signin/twitch`;
+  const callbackURL = `${API_BASE_URL}/api/auth/callback/twitch`;
 
-  console.log("Starting Twitch OAuth flow...");
-  console.log("Redirect URL:", getRedirectURL());
+  console.log("Starting better-auth OAuth flow...");
+  console.log("Auth URL:", authURL);
 
-  // Launch the OAuth flow
+  // Use launchWebAuthFlow to handle the OAuth process
+  // The backend will handle Twitch OAuth and set session cookies
   const responseURL = await browser.identity.launchWebAuthFlow({
     url: authURL,
     interactive: true,
@@ -147,59 +40,106 @@ export async function signInWithTwitch(): Promise<AuthSession> {
 
   console.log("OAuth response received:", responseURL);
 
-  // Parse the access token from the response
-  const tokenData = parseAccessToken(responseURL);
+  // After successful OAuth, better-auth has set cookies
+  // Now fetch the session from the backend
+  const sessionData = await fetchSession();
 
-  // Fetch user information
-  const user = await fetchTwitchUser(tokenData.token);
+  if (!sessionData) {
+    throw new Error("Failed to retrieve session after authentication");
+  }
 
-  // Create session object
-  const session: AuthSession = {
-    user,
-    accessToken: tokenData.token,
-    expiresAt: Date.now() + tokenData.expiresIn * 1000,
-  };
+  // Store session info in browser storage for UI display
+  await browser.storage.local.set({ twitchSession: sessionData });
 
-  // Store session in browser storage
-  await browser.storage.local.set({ twitchSession: session });
+  console.log("Successfully signed in as:", sessionData.user.name);
+  return sessionData;
+}
 
-  console.log("Successfully signed in as:", user.display_name);
-  return session;
+// Fetch current session from backend
+async function fetchSession(): Promise<AuthSession | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/get-session`, {
+      credentials: "include", // Include cookies
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch session:", response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (!data.user || !data.session) {
+      return null;
+    }
+
+    return {
+      user: {
+        id: data.user.id,
+        name: data.user.name || data.user.email,
+        email: data.user.email,
+        image: data.user.image,
+      },
+      session: {
+        token: data.session.token,
+        expiresAt: data.session.expiresAt,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching session:", error);
+    return null;
+  }
 }
 
 // Sign out and clear stored session
 export async function signOutTwitch(): Promise<void> {
+  try {
+    // Call backend to invalidate session
+    await fetch(`${API_BASE_URL}/api/auth/sign-out`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch (error) {
+    console.error("Error signing out from backend:", error);
+  }
+
+  // Clear local storage
   await browser.storage.local.remove("twitchSession");
   console.log("Signed out successfully");
 }
 
-// Get current session from storage
+// Get current session from storage or fetch from backend
 export async function getStoredSession(): Promise<AuthSession | null> {
+  // First check local storage
   const result = await browser.storage.local.get("twitchSession");
-  const session = result.twitchSession as AuthSession | undefined;
+  const localSession = result.twitchSession as AuthSession | undefined;
 
-  if (!session) {
-    return null;
+  if (localSession && Date.now() < localSession.session.expiresAt) {
+    // Local session is still valid
+    return localSession;
   }
 
-  // Check if session is expired
-  if (Date.now() >= session.expiresAt) {
-    await signOutTwitch();
-    return null;
+  // Local session expired or doesn't exist, fetch from backend
+  const backendSession = await fetchSession();
+
+  if (backendSession) {
+    // Update local storage with fresh session
+    await browser.storage.local.set({ twitchSession: backendSession });
+  } else {
+    // No valid session, clear local storage
+    await browser.storage.local.remove("twitchSession");
   }
 
-  return session;
+  return backendSession;
 }
 
-// Validate that the token is still valid
-export async function validateSession(session: AuthSession): Promise<boolean> {
+// Validate session with backend
+export async function validateSession(
+  session: AuthSession,
+): Promise<boolean> {
   try {
-    const response = await fetch("https://id.twitch.tv/oauth2/validate", {
-      headers: {
-        Authorization: `OAuth ${session.accessToken}`,
-      },
-    });
-    return response.ok;
+    const currentSession = await fetchSession();
+    return currentSession !== null;
   } catch {
     return false;
   }

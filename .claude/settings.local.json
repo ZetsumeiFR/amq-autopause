@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "D:\\Projets\\amq-autopause-back\\"
+    ],
+    "allow": [
+      "mcp__sequential-thinking__sequentialthinking"
+    ]
+  }
+}
