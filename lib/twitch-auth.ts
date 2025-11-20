@@ -18,41 +18,103 @@ export interface AuthSession {
   };
 }
 
-// Main sign in function using better-auth backend
+// Main sign in function using better-auth backend with Chrome extension support
 export async function signInWithTwitch(): Promise<AuthSession> {
-  // Open backend's OAuth flow in a new window
-  const authURL = `${API_BASE_URL}/api/auth/signin/twitch`;
-  const callbackURL = `${API_BASE_URL}/api/auth/callback/twitch`;
+  console.log("Starting Chrome extension OAuth flow...");
 
-  console.log("Starting better-auth OAuth flow...");
+  // Get the extension's redirect URL that Chrome will recognize
+  const redirectURL = browser.identity.getRedirectURL("oauth");
+  console.log("Extension redirect URL:", redirectURL);
+
+  // Create the OAuth URL with proper redirect
+  // We'll use a custom endpoint that handles the extension redirect
+  const authURL = `${API_BASE_URL}/api/auth/extension/signin?redirect_uri=${encodeURIComponent(redirectURL)}`;
   console.log("Auth URL:", authURL);
 
-  // Use launchWebAuthFlow to handle the OAuth process
-  // The backend will handle Twitch OAuth and set session cookies
-  const responseURL = await browser.identity.launchWebAuthFlow({
-    url: authURL,
-    interactive: true,
-  });
+  try {
+    // Use launchWebAuthFlow to handle the OAuth process
+    // This will open Twitch auth and wait for redirect back to our extension
+    const responseURL = await browser.identity.launchWebAuthFlow({
+      url: authURL,
+      interactive: true,
+    });
 
-  if (!responseURL) {
-    throw new Error("No response URL received from OAuth flow");
+    if (!responseURL) {
+      throw new Error("No response URL received from OAuth flow");
+    }
+
+    console.log("OAuth response received:", responseURL);
+
+    // Parse the session token from the redirect URL
+    const url = new URL(responseURL);
+    const sessionToken = url.searchParams.get("session_token");
+
+    if (!sessionToken) {
+      throw new Error("No session token received from authentication");
+    }
+
+    // Exchange the session token for full session data
+    const sessionData = await exchangeSessionToken(sessionToken);
+
+    if (!sessionData) {
+      throw new Error("Failed to exchange session token");
+    }
+
+    // Store session info in browser storage for UI display
+    await browser.storage.local.set({ twitchSession: sessionData });
+
+    console.log("Successfully signed in as:", sessionData.user.name);
+    return sessionData;
+  } catch (error) {
+    console.error("OAuth flow error:", error);
+    throw error;
   }
+}
 
-  console.log("OAuth response received:", responseURL);
+// Exchange session token for full session data
+async function exchangeSessionToken(
+  token: string,
+): Promise<AuthSession | null> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/auth/extension/session`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ session_token: token }),
+        credentials: "include",
+      },
+    );
 
-  // After successful OAuth, better-auth has set cookies
-  // Now fetch the session from the backend
-  const sessionData = await fetchSession();
+    if (!response.ok) {
+      console.error("Failed to exchange session token:", response.statusText);
+      return null;
+    }
 
-  if (!sessionData) {
-    throw new Error("Failed to retrieve session after authentication");
+    const data = await response.json();
+
+    if (!data.user || !data.session) {
+      return null;
+    }
+
+    return {
+      user: {
+        id: data.user.id,
+        name: data.user.name || data.user.email,
+        email: data.user.email,
+        image: data.user.image,
+      },
+      session: {
+        token: data.session.token,
+        expiresAt: data.session.expiresAt,
+      },
+    };
+  } catch (error) {
+    console.error("Error exchanging session token:", error);
+    return null;
   }
-
-  // Store session info in browser storage for UI display
-  await browser.storage.local.set({ twitchSession: sessionData });
-
-  console.log("Successfully signed in as:", sessionData.user.name);
-  return sessionData;
 }
 
 // Fetch current session from backend
