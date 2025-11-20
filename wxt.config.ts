@@ -8,7 +8,7 @@ export default defineConfig({
     host_permissions: [
       "https://id.twitch.tv/*",
       "https://api.twitch.tv/*",
-      "http://localhost:3000/*", // Backend API
+      "https://api.amqautopause.zetsumei.xyz/*", // Backend API
       "*://animemusicquiz.com/*", // AMQ site
     ],
   },
